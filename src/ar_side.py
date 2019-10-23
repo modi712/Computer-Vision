@@ -1,4 +1,4 @@
-
+# Double Projection option to display one
 # Useful links
 # http://www.pygame.org/wiki/OBJFileLoader
 # https://rdmilligan.wordpress.com/2015/10/15/augmented-reality-using-opencv-opengl-and-blender/
@@ -20,7 +20,7 @@ from objloader_simple import *
 MIN_MATCHES = 50
 ONE = True
 TWO = True
-referencePath ='reference/mark1.jpg'
+referencePath ='reference/mark4.jpg'
 referencePath2 = 'reference/mark2.jpg'
 
 def main():
@@ -73,8 +73,8 @@ def main():
 #------------
         # compute Homography if enough matches are found
         if len(matches) > MIN_MATCHES and ONE:
-            # differenciate between source points and destination points
             print( "Enough matches found - %d/%d" % (len(matches), MIN_MATCHES) )
+            # differenciate between source points and destination points
             src_pts = np.float32([kp_model[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
             dst_pts = np.float32([kp_frame[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
             # compute Homography
@@ -88,7 +88,7 @@ def main():
                 # connect them with lines
                 frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
             # if a valid homography matrix was found render cube on model plane
-            if homography is not None:
+            if (homography is not None) and (not args.model) :
                 try:
                     # obtain 3D projection matrix from homography matrix and camera parameters
                     projection = projection_matrix(camera_parameters, homography)
@@ -129,7 +129,7 @@ def main():
                 # connect them with lines
                 frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
             # if a valid homography matrix was found render cube on model plane
-            if homography is not None:
+            if (homography is not None )and (not args.model) :
                 try:
                     # obtain 3D projection matrix from homography matrix and camera parameters
                     projection = projection_matrix(camera_parameters, homography)
@@ -224,6 +224,7 @@ def hex_to_rgb(hex_color):
 # NOT ALL OF THEM ARE SUPPORTED YET
 parser = argparse.ArgumentParser(description='Augmented reality application')
 
+parser.add_argument('-mo','--model', help = 'do not draw model on target surface on frame', action = 'store_true')
 parser.add_argument('-r','--rectangle', help = 'draw rectangle delimiting target surface on frame', action = 'store_true')
 parser.add_argument('-mk','--model_keypoints', help = 'draw model keypoints', action = 'store_true')
 parser.add_argument('-fk','--frame_keypoints', help = 'draw frame keypoints', action = 'store_true')

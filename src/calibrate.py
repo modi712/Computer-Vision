@@ -1,3 +1,4 @@
+# Calibrates camera using chessboard video
 import numpy as np
 import cv2
 import glob
@@ -17,7 +18,7 @@ images = glob.glob('./Chessboard/*.jpg')
 # print(len(images))
 
 # videos = glob.glob('./Chessboard/*.mp4')
-inputt = './Chessboard/chess4.mp4'
+inputt = './Chessboard/chess.mp4'
 count=0
 capture = cv2.VideoCapture(cv2.samples.findFileOrKeep(inputt))
 if not capture.isOpened:
@@ -53,7 +54,7 @@ while True:
         #break
 cv2.destroyAllWindows()
 #Analysis
-print(count)
+print(str(count)+' frames computed')
 # print(objpoints)
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None)
 print("mtx: \n",mtx)
@@ -67,13 +68,17 @@ chess.mp4 -> 68
 [[824.05762458   0.         381.10745975]
  [  0.         839.01299642 134.22842609]
  [  0.           0.           1.        ]]
+ -> 51
+ [[671.80835447,   0.        , 313.47576239],
+ [  0.        , 669.23376398, 287.95174802],
+ [  0.        ,   0.        ,   1.        ]]
 
  ches2.mp4 -> 1
  [[692.47904804   0.         439.49980877]
  [  0.         802.40991748 204.76436888]
  [  0.           0.           1.        ]]
 
- chess3.,p4 -> 0
+ chess3.mp4 -> 0
 
  chess4.mp4 -> 229/51
  [[860.00199971   0.          27.8037219 ]

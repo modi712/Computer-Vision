@@ -1,14 +1,6 @@
-
-# Useful links
-# http://www.pygame.org/wiki/OBJFileLoader
-# https://rdmilligan.wordpress.com/2015/10/15/augmented-reality-using-opencv-opengl-and-blender/
-# https://clara.io/library
-
-# TODO -> Implement command line arguments (scale, model and object to be projected)
-#      -> Refactor and organize code (proper funcition definition and separation, classes, error handling...)
+# Single projection original code
 
 import argparse
-
 import cv2
 import numpy as np
 import math
@@ -17,24 +9,27 @@ from objloader_simple import *
 
 # Minimum number of matches that have to be found
 # to consider the recognition valid
-MIN_MATCHES = 10
-referencePath ='reference/mark2.jpg'
+
+THRESHOLD = 50	# min number of matches to be recognized
+SIZE = 3		# size for the display obj
+ref ='reference/mark4.jpg'
 
 def main():
     """
     This functions loads the target surface image,
     """
-    homography = None
+    homo = None
     # matrix of camera parameters (made up but works quite well for me)
     # calculate camera_parameters???
-    camera_parameters = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]])
+#    camera_parameters = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]])
+    camera_parameters = np.array([[824.05762458, 0, 381.10745975][0, 839.01299642, 134.22842609][0, 0, 1]])
     # create ORB keypoint detector
     orb = cv2.ORB_create()
     # create BFMatcher object based on hamming distance
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     # load the reference surface that will be searched in the video stream
     dir_name = os.getcwd()
-    model = cv2.imread(os.path.join(dir_name, referencePath), 0)
+    model = cv2.imread(os.path.join(dir_name, ref), 0)
     # Compute model keypoints and its descriptors
     kp_model, des_model = orb.detectAndCompute(model, None)
     # Load 3D model from OBJ file
@@ -54,7 +49,7 @@ def main():
         try:
         	matches = bf.match(des_model, des_frame)
         except:
-        	print("Closing")
+        	print("Too Dark")
         	cap.release()
         	return 0
 
@@ -63,40 +58,44 @@ def main():
         matches = sorted(matches, key=lambda x: x.distance)
 
         # compute Homography if enough matches are found
-        if len(matches) > MIN_MATCHES:
+        if len(matches) > THRESHOLD:
             # differenciate between source points and destination points
+            print( "Enough matches found - %d/%d" % (len(matches), THRESHOLD) )
             src_pts = np.float32([kp_model[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
             dst_pts = np.float32([kp_frame[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
             # compute Homography
-            homography, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+            homo, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
             if args.rectangle:
                 # Draw a rectangle that marks the found model in the frame
                 h, w = model.shape
                 pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
                 # project corners into frame
-                dst = cv2.perspectiveTransform(pts, homography)
+                dst = cv2.perspectiveTransform(pts, homo)
                 # connect them with lines
                 frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
+                
             # if a valid homography matrix was found render cube on model plane
-            if homography is not None:
+            if (homo is not None )and (not args.model):
                 try:
                     # obtain 3D projection matrix from homography matrix and camera parameters
-                    projection = projection_matrix(camera_parameters, homography)
+                    (projection,l) = projection_matrix(camera_parameters, homo)
                     # project cube or model
                     frame = render(frame, obj, projection, model, False)
                     #frame = render(frame, model, projection)
                 except:
                     pass
+                    
             # draw first 10 matches.
             if args.matches:
                 frame = cv2.drawMatches(model, kp_model, frame, kp_frame, matches[:10], 0, flags=2)
+
             # show result
             cv2.imshow('frame', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
         else:
-            print( "Not enough matches found - %d/%d" % (len(matches), MIN_MATCHES) )
+            print( "Not enough matches found - %d/%d" % (len(matches), THRESHOLD) )
 
     cap.release()
     cv2.destroyAllWindows()
@@ -107,7 +106,7 @@ def render(img, obj, projection, model, color=False):
     Render a loaded obj model into the current video frame
     """
     vertices = obj.vertices
-    scale_matrix = np.eye(3) * 3
+    scale_matrix = np.eye(3) * SIZE
     h, w = model.shape
 
     for face in obj.faces:
@@ -168,12 +167,9 @@ def hex_to_rgb(hex_color):
 # NOT ALL OF THEM ARE SUPPORTED YET
 parser = argparse.ArgumentParser(description='Augmented reality application')
 
+parser.add_argument('-mo','--model', help = 'do not draw model on target surface on frame', action = 'store_true')
 parser.add_argument('-r','--rectangle', help = 'draw rectangle delimiting target surface on frame', action = 'store_true')
-parser.add_argument('-mk','--model_keypoints', help = 'draw model keypoints', action = 'store_true')
-parser.add_argument('-fk','--frame_keypoints', help = 'draw frame keypoints', action = 'store_true')
 parser.add_argument('-ma','--matches', help = 'draw matches between keypoints', action = 'store_true')
-# TODO jgallostraa -> add support for model specification
-#parser.add_argument('-mo','--model', help = 'Specify model to be projected', action = 'store_true')
 
 args = parser.parse_args()
 
